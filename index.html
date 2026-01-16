@@ -24,17 +24,17 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 
-    <!-- CLEANUP SCRIPT: Fixes 404s by deleting old broken Service Workers (With Error Handling) -->
+    <!-- CLEANUP SCRIPT -->
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            }).catch(function(err) {
-                console.warn('Service Worker cleanup skipped (expected in preview environments):', err);
-            });
-        }
+        try {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                    }
+                }).catch(err => { console.log("SW cleanup skipped"); });
+            }
+        } catch (e) { console.log("SW not supported"); }
     </script>
 
     <style>
@@ -255,9 +255,10 @@
         </div>
     </div>
 
-    <!-- Image Cropper -->
+    <!-- Image Cropper with Safe Area Top Padding -->
     <div id="cropper-modal" class="fixed inset-0 z-[200] bg-black flex flex-col hidden-ui" onclick="stopProp(event)">
-        <div class="flex justify-between items-center px-4 py-4 bg-gray-900 border-b border-gray-800 z-10">
+        <!-- ADDED: pt-[calc(env(safe-area-inset-top)+1rem)] for Notch Support -->
+        <div class="flex justify-between items-center px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] bg-gray-900 border-b border-gray-800 z-10">
             <button onclick="cancelCrop()" class="text-white text-base font-medium px-2 py-1">Cancel</button>
             <h3 class="text-white font-bold text-sm tracking-wide">ADJUST IMAGE</h3>
             <button onclick="saveCrop()" class="text-blue-400 font-bold text-base px-2 py-1">Done</button>
@@ -272,13 +273,14 @@
                 <div class="absolute left-2/3 h-full w-px bg-white/20"></div>
             </div>
         </div>
-        <div class="h-12 bg-gray-900 border-t border-gray-800 flex items-center justify-center text-xs text-gray-400">Pinch to Zoom • Drag to Move</div>
+        <!-- ADDED: pb-[env(safe-area-inset-bottom)] for Home Bar Support -->
+        <div class="h-12 pb-[env(safe-area-inset-bottom)] box-content bg-gray-900 border-t border-gray-800 flex items-center justify-center text-xs text-gray-400">Pinch to Zoom • Drag to Move</div>
     </div>
 
     <!-- Main Card Area -->
     <div id="card-display" class="flex-1 w-full relative cursor-pointer active:brightness-95 bg-red-600 flex flex-col items-center justify-center">
         
-        <!-- BLUE UI CONTAINER: Updated padding for Safe Area Notch -->
+        <!-- BLUE UI CONTAINER: Safe Area Top Padding -->
         <div id="blue-ui" class="absolute inset-0 w-full h-full px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] flex flex-col">
             
             <!-- Header -->
