@@ -278,7 +278,8 @@
     <!-- Main Card Area -->
     <div id="card-display" class="flex-1 w-full relative cursor-pointer active:brightness-95 bg-red-600 flex flex-col items-center justify-center">
         
-        <div id="blue-ui" class="absolute inset-0 w-full h-full p-6 flex flex-col">
+        <!-- BLUE UI CONTAINER: Updated padding for Safe Area Notch -->
+        <div id="blue-ui" class="absolute inset-0 w-full h-full px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] flex flex-col">
             
             <!-- Header -->
             <div class="flex justify-between items-start w-full mb-4 relative z-20">
