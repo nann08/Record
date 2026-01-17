@@ -848,9 +848,10 @@
             halftimePopup.classList.remove('active');
             gameView.classList.remove('halftime-active');
             updatePeriodDisplay();
+            updateTimerDisplay(); // Update immediately so we see the time reset
             
-            // Stop timer to wait for kick off
-            toggleTimer(null);
+            // PREVIOUSLY: toggleTimer(null); // This paused the game
+            // NOW: We let it run automatically
             playWhistle();
         }
 
