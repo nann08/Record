@@ -155,6 +155,16 @@
             color: #fbbf24;
             text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
         }
+        
+        /* Period Indicator Animation */
+        .period-change {
+            animation: pulse-text 0.5s ease-in-out;
+        }
+        @keyframes pulse-text {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
         /* Buttons */
         .btn-premium {
@@ -259,7 +269,8 @@
         .scoreboard-logo {
             width: 72px; 
             height: 72px; 
-            object-fit: contain;
+            object-fit: cover;
+            border-radius: 50%;
             margin-bottom: 8px;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
         }
@@ -444,7 +455,11 @@
                         </div>
                     </div>
 
-                    <div class="w-full h-px bg-slate-800 mb-6 transition-colors duration-500"></div>
+                    <div class="w-full h-px bg-slate-800 mb-4 transition-colors duration-500"></div>
+                    
+                    <!-- Period Indicator -->
+                    <div id="period-display" class="text-xs font-bold text-slate-500 tracking-[0.2em] mb-1 transition-all duration-300">PERIOD 1</div>
+                    
                     <div id="timer-display" class="font-digital text-6xl text-white tracking-widest tabular-nums leading-none font-bold transition-colors duration-500">00:00</div>
                 </div>
 
@@ -481,7 +496,7 @@
         const getCards = () => ['bg-red-600', 'bg-yellow-400', isDarkMode ? 'bg-zinc-900' : 'bg-gray-100'];
         let currentCardIndex = 2;
 
-        let gameSettings = { team1: "Home", team2: "Away", team1Logo: null, team2Logo: null, matchTime: 45, halfTime: 15, locked: false };
+        let gameSettings = { team1: "Home", team2: "Away", team1Logo: null, team2Logo: null, matchTime: 90, halfTime: 15, locked: false };
         let gameState = { 
             team1Score: 0, 
             team2Score: 0, 
@@ -489,9 +504,8 @@
             isRunning: false, 
             timerInterval: null,
             isHalftime: false,
-            halfTimeTriggered: false,
-            halfwayPoint: 0,
-            savedMatchTime: 0
+            currentPeriod: 1, // 1 = 1st Half, 2 = 2nd Half, 3 = End
+            halfLength: 45 * 60
         };
 
         const setupView = document.getElementById('setup-view');
@@ -500,6 +514,7 @@
         const setupHeader = document.getElementById('setup-header');
         const setupTimerDisplay = document.getElementById('setup-timer-display');
         const timerDisplay = document.getElementById('timer-display');
+        const periodDisplay = document.getElementById('period-display');
         const goBtn = document.getElementById('go-btn');
         const themeBtn = document.getElementById('theme-btn');
 
@@ -678,20 +693,26 @@
             if(e) e.stopPropagation();
             gameSettings.team1 = document.getElementById('team1-input').value || "Home";
             gameSettings.team2 = document.getElementById('team2-input').value || "Away";
-            const inputMatchTime = parseFloat(document.getElementById('match-time-input').value) || 45;
+            const inputMatchTime = parseFloat(document.getElementById('match-time-input').value) || 90;
             const inputHalfTime = parseFloat(document.getElementById('half-time-input').value) || 15;
             
             gameState.team1Score = parseInt(document.getElementById('team1-score-input').value) || 0;
             gameState.team2Score = parseInt(document.getElementById('team2-score-input').value) || 0;
             
-            // Check if Match Time changed (resets game)
-            if (inputMatchTime !== gameSettings.matchTime || (!gameSettings.locked && gameState.timeRemaining === 45*60)) {
-                gameState.timeRemaining = Math.floor(inputMatchTime * 60);
-                // Reset flags if time changed
+            // If settings are unlocked, or time changed, reset the game state basics
+            if (inputMatchTime !== gameSettings.matchTime || !gameSettings.locked) {
+                // Calculate length of one half (Input is TOTAL duration)
+                gameState.halfLength = Math.floor((inputMatchTime / 2) * 60);
+                
+                // Only reset time if we aren't in the middle of a specific paused state we want to keep
+                // For simplicity, unlocking settings resets the current period timer
+                gameState.timeRemaining = gameState.halfLength;
+                gameState.currentPeriod = 1;
                 gameState.isHalftime = false;
-                gameState.halfTimeTriggered = false;
+                
                 halftimePopup.classList.remove('active');
                 gameView.classList.remove('halftime-active');
+                updatePeriodDisplay();
             }
             
             // Check if Halftime Duration changed WHILE in halftime
@@ -702,9 +723,6 @@
             
             gameSettings.matchTime = inputMatchTime;
             gameSettings.halfTime = inputHalfTime;
-            
-            // Calculate halfway point (timeRemaining counts down, so halfway is total / 2)
-            gameState.halfwayPoint = Math.floor((gameSettings.matchTime * 60) / 2);
             
             gameSettings.locked = true;
             document.getElementById('score-team1-name').innerText = gameSettings.team1;
@@ -727,24 +745,43 @@
             gameSettings.locked = false; updateUI();
         }
 
+        function updatePeriodDisplay() {
+            periodDisplay.classList.remove('period-change');
+            void periodDisplay.offsetWidth; // Trigger reflow
+            periodDisplay.classList.add('period-change');
+
+            if (gameState.isHalftime) {
+                periodDisplay.innerText = "HALF TIME";
+                periodDisplay.classList.add('text-amber-400');
+                periodDisplay.classList.remove('text-slate-500');
+            } else {
+                periodDisplay.classList.remove('text-amber-400');
+                periodDisplay.classList.add('text-slate-500');
+                if (gameState.currentPeriod === 1) periodDisplay.innerText = "PERIOD 1";
+                else if (gameState.currentPeriod === 2) periodDisplay.innerText = "PERIOD 2";
+                else periodDisplay.innerText = "FULL TIME";
+            }
+        }
+
         function startHalftime() {
             gameState.isHalftime = true;
-            gameState.halfTimeTriggered = true;
-            gameState.savedMatchTime = gameState.timeRemaining; // Should be exactly halfwayPoint
             gameState.timeRemaining = Math.floor(gameSettings.halfTime * 60);
             
             halftimePopup.classList.add('active');
             gameView.classList.add('halftime-active');
+            updatePeriodDisplay();
             playWhistle();
         }
 
         function endHalftime() {
             gameState.isHalftime = false;
-            // Restore match time
-            gameState.timeRemaining = gameState.savedMatchTime;
+            gameState.currentPeriod = 2;
+            // Reset timer for 2nd half
+            gameState.timeRemaining = gameState.halfLength;
             
             halftimePopup.classList.remove('active');
             gameView.classList.remove('halftime-active');
+            updatePeriodDisplay();
             
             // Stop timer to wait for kick off
             toggleTimer(null);
@@ -762,26 +799,22 @@
                 goBtn.classList.remove('btn-start'); goBtn.classList.add('btn-stop'); goBtn.innerText = "STOP";
                 
                 gameState.timerInterval = setInterval(() => {
-                    // Check for Halftime trigger (only if we haven't triggered it yet)
-                    if (!gameState.isHalftime && !gameState.halfTimeTriggered && gameState.timeRemaining === gameState.halfwayPoint) {
-                        startHalftime();
-                        // Do not return, let the first second of halftime tick immediately or wait? 
-                        // If we start halftime, timeRemaining is reset to 15:00.
-                        // We update display immediately.
-                        updateTimerDisplay();
-                        return;
-                    }
-
                     if (gameState.timeRemaining > 0) {
                         gameState.timeRemaining--;
                         updateTimerDisplay();
                     } else {
                         // Time hit 0
                         if (gameState.isRunning) {
-                            if (gameState.isHalftime) {
+                            if (gameState.currentPeriod === 1 && !gameState.isHalftime) {
+                                // End of 1st Half -> Start Halftime
+                                startHalftime();
+                            } else if (gameState.isHalftime) {
+                                // End of Halftime -> Start 2nd Half (Paused)
                                 endHalftime();
-                            } else {
-                                // Game Over
+                            } else if (gameState.currentPeriod === 2) {
+                                // End of 2nd Half -> Game Over
+                                gameState.currentPeriod = 3; // Finished
+                                updatePeriodDisplay();
                                 toggleTimer(null);
                                 playWhistle();
                             }
