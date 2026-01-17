@@ -874,7 +874,7 @@
                                 gameState.currentPeriod = 3; // Finished
                                 updatePeriodDisplay();
                                 playWhistle();
-                                setTimeout(() => { playWhistle(); }, 800); // Double whistle for end
+                                // Removed the second whistle here to prevent interruption
                                 setTimeout(() => { showResults(); }, 1500); // Delay results slightly
                             }
                         }
