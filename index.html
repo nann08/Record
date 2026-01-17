@@ -296,6 +296,32 @@
             box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
         }
 
+        /* Results Screen Styles */
+        .winner-card {
+            transform: scale(1.15);
+            opacity: 1;
+            z-index: 10;
+        }
+        .winner-card img {
+            border-color: #4ade80; /* Green */
+            box-shadow: 0 0 30px rgba(74, 222, 128, 0.4);
+        }
+        .winner-trophy {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+        }
+
+        .loser-card {
+            transform: scale(0.85);
+            opacity: 0.6;
+            z-index: 5;
+        }
+        
+        .draw-card {
+            transform: scale(1);
+            opacity: 1;
+        }
+
         #cropper-modal { touch-action: none; }
     </style>
 </head>
@@ -417,7 +443,7 @@
                     <div class="flex-1 space-y-2">
                         <label class="text-slate-400 text-xs font-bold tracking-wider uppercase ml-1">Match Duration</label>
                         <div class="relative">
-                            <input type="number" step="0.5" id="match-time-input" class="glass-input text-center font-digital text-xl" placeholder="45" value="45">
+                            <input type="number" step="0.5" id="match-time-input" class="glass-input text-center font-digital text-xl" placeholder="90" value="90">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs pointer-events-none">min</span>
                         </div>
                     </div>
@@ -479,6 +505,45 @@
                 </div>
 
             </div>
+
+            <!-- Results View -->
+            <div id="results-view" class="absolute inset-0 z-50 flex flex-col items-center justify-center hidden-ui bg-black/80 backdrop-blur-md p-6" onclick="stopProp(event)">
+                <h1 id="result-title" class="text-4xl font-black text-white italic tracking-widest uppercase text-center drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-10 animate-bounce">HOME WINS</h1>
+                
+                <div class="flex items-center justify-center gap-2 w-full mb-12">
+                    <!-- Team 1 Result -->
+                    <div id="result-card-1" class="flex flex-col items-center transition-all duration-700 ease-in-out">
+                        <div class="relative mb-4">
+                            <img id="result-logo-1" src="" class="w-24 h-24 rounded-full object-cover border-4 border-transparent shadow-2xl bg-gray-800">
+                            <div class="winner-trophy absolute -top-8 left-1/2 -translate-x-1/2 text-green-400 opacity-0 transform translate-y-4 transition-all duration-700 delay-300">
+                                <i data-lucide="trophy" class="w-8 h-8 fill-current"></i>
+                            </div>
+                        </div>
+                        <h2 id="result-name-1" class="text-lg font-bold text-blue-400 uppercase tracking-wider mb-2 max-w-[120px] truncate">Home</h2>
+                        <div id="result-score-1" class="font-digital text-6xl text-white leading-none">2</div>
+                    </div>
+
+                    <div class="text-slate-600 font-black text-2xl px-2 italic">VS</div>
+
+                    <!-- Team 2 Result -->
+                    <div id="result-card-2" class="flex flex-col items-center transition-all duration-700 ease-in-out">
+                        <div class="relative mb-4">
+                            <img id="result-logo-2" src="" class="w-24 h-24 rounded-full object-cover border-4 border-transparent shadow-2xl bg-gray-800">
+                            <div class="winner-trophy absolute -top-8 left-1/2 -translate-x-1/2 text-green-400 opacity-0 transform translate-y-4 transition-all duration-700 delay-300">
+                                <i data-lucide="trophy" class="w-8 h-8 fill-current"></i>
+                            </div>
+                        </div>
+                        <h2 id="result-name-2" class="text-lg font-bold text-red-400 uppercase tracking-wider mb-2 max-w-[120px] truncate">Away</h2>
+                        <div id="result-score-2" class="font-digital text-6xl text-white leading-none">1</div>
+                    </div>
+                </div>
+
+                <button onclick="resetGame()" class="group relative px-8 py-4 bg-white text-black font-black text-xl rounded-full uppercase tracking-widest shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all overflow-hidden">
+                    <span class="relative z-10">New Match</span>
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                </button>
+            </div>
+
         </div>
     </div>
 
@@ -492,6 +557,7 @@
         const splashScreen = document.getElementById('splash-screen');
         const blueUi = document.getElementById('blue-ui');
         const halftimePopup = document.getElementById('halftime-popup');
+        const resultsView = document.getElementById('results-view');
 
         const getCards = () => ['bg-red-600', 'bg-yellow-400', isDarkMode ? 'bg-zinc-900' : 'bg-gray-100'];
         let currentCardIndex = 2;
@@ -813,10 +879,13 @@
                                 endHalftime();
                             } else if (gameState.currentPeriod === 2) {
                                 // End of 2nd Half -> Game Over
+                                clearInterval(gameState.timerInterval);
+                                gameState.isRunning = false;
                                 gameState.currentPeriod = 3; // Finished
                                 updatePeriodDisplay();
-                                toggleTimer(null);
                                 playWhistle();
+                                setTimeout(() => { playWhistle(); }, 800); // Double whistle for end
+                                setTimeout(() => { showResults(); }, 1500); // Delay results slightly
                             }
                         }
                     }
@@ -838,11 +907,93 @@
 
         function updateUI() {
             if (gameSettings.locked) {
-                setupView.classList.add('hidden-ui'); setupHeader.classList.add('hidden-ui'); confirmBtn.classList.add('hidden-ui'); gameView.classList.remove('hidden-ui');
+                setupView.classList.add('hidden-ui'); 
+                setupHeader.classList.add('hidden-ui'); 
+                confirmBtn.classList.add('hidden-ui'); 
+                
+                if (gameState.currentPeriod === 3) {
+                    gameView.classList.add('hidden-ui');
+                    resultsView.classList.remove('hidden-ui');
+                } else {
+                    gameView.classList.remove('hidden-ui');
+                    resultsView.classList.add('hidden-ui');
+                }
             } else {
-                setupView.classList.remove('hidden-ui'); setupHeader.classList.remove('hidden-ui'); confirmBtn.classList.remove('hidden-ui'); gameView.classList.add('hidden-ui');
+                setupView.classList.remove('hidden-ui'); setupHeader.classList.remove('hidden-ui'); confirmBtn.classList.remove('hidden-ui'); gameView.classList.add('hidden-ui'); resultsView.classList.add('hidden-ui');
                 if (gameState.isRunning) setupTimerDisplay.classList.remove('hidden-ui'); else setupTimerDisplay.classList.add('hidden-ui');
             }
+        }
+
+        function showResults() {
+            // Populate Data
+            document.getElementById('result-name-1').innerText = gameSettings.team1;
+            document.getElementById('result-name-2').innerText = gameSettings.team2;
+            document.getElementById('result-score-1').innerText = gameState.team1Score;
+            document.getElementById('result-score-2').innerText = gameState.team2Score;
+            
+            // Handle Logos (use placeholder if empty)
+            const logo1 = document.getElementById('result-logo-1');
+            const logo2 = document.getElementById('result-logo-2');
+            
+            // We reuse the preview/uploaded logic or fallback to a colored circle logic? 
+            // Better to use the src from the scoreboard images or the base64 stored.
+            logo1.src = gameSettings.team1Logo || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3C/svg%3E";
+            logo2.src = gameSettings.team2Logo || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f87171' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3C/svg%3E";
+
+            // Determine Winner
+            const card1 = document.getElementById('result-card-1');
+            const card2 = document.getElementById('result-card-2');
+            const title = document.getElementById('result-title');
+            
+            // Reset Classes
+            card1.classList.remove('winner-card', 'loser-card', 'draw-card');
+            card2.classList.remove('winner-card', 'loser-card', 'draw-card');
+
+            if (gameState.team1Score > gameState.team2Score) {
+                title.innerText = `${gameSettings.team1} WINS!`;
+                title.style.color = '#60a5fa'; // Blue
+                card1.classList.add('winner-card');
+                card2.classList.add('loser-card');
+            } else if (gameState.team2Score > gameState.team1Score) {
+                title.innerText = `${gameSettings.team2} WINS!`;
+                title.style.color = '#f87171'; // Red
+                card2.classList.add('winner-card');
+                card1.classList.add('loser-card');
+            } else {
+                title.innerText = "DRAW";
+                title.style.color = '#fbbf24'; // Gold
+                card1.classList.add('draw-card');
+                card2.classList.add('draw-card');
+            }
+            
+            lucide.createIcons(); // Refresh icons for trophy
+            updateUI();
+        }
+
+        function resetGame() {
+            // Unlock settings and reset basic state
+            gameSettings.locked = false;
+            gameState.team1Score = 0;
+            gameState.team2Score = 0;
+            gameState.currentPeriod = 1;
+            gameState.isHalftime = false;
+            gameState.isRunning = false;
+            gameState.timeRemaining = gameState.halfLength;
+            
+            // Reset inputs
+            document.getElementById('team1-score-input').value = 0;
+            document.getElementById('team2-score-input').value = 0;
+            
+            // Reset Scoreboard UI
+            document.getElementById('score-team1-val').innerText = 0;
+            document.getElementById('score-team2-val').innerText = 0;
+            
+            goBtn.classList.remove('btn-stop'); goBtn.classList.add('btn-start'); 
+            goBtn.innerText = "GO";
+            
+            updatePeriodDisplay();
+            updateTimerDisplay();
+            updateUI();
         }
 
         function updateCardDisplay() {
